@@ -44,6 +44,8 @@ public class RandomLoadBalancer implements ReactorServiceInstanceLoadBalancer {
 
 	private ObjectProvider<ServiceInstanceListSupplier> serviceInstanceListSupplierProvider;
 
+	private volatile ServiceInstanceListSupplier serviceInstanceListSupplier;
+
 	/**
 	 * @param serviceInstanceListSupplierProvider a provider of
 	 * {@link ServiceInstanceListSupplier} that will be used to get available instances
@@ -58,8 +60,7 @@ public class RandomLoadBalancer implements ReactorServiceInstanceLoadBalancer {
 	@SuppressWarnings("rawtypes")
 	@Override
 	public Mono<Response<ServiceInstance>> choose(Request request) {
-		ServiceInstanceListSupplier supplier = serviceInstanceListSupplierProvider
-				.getIfAvailable(NoopServiceInstanceListSupplier::new);
+		ServiceInstanceListSupplier supplier = getServiceInstanceListSupplier();
 		return supplier.get(request).next()
 				.map(serviceInstances -> processInstanceResponse(supplier, serviceInstances));
 	}
@@ -85,6 +86,18 @@ public class RandomLoadBalancer implements ReactorServiceInstanceLoadBalancer {
 		ServiceInstance instance = instances.get(index);
 
 		return new DefaultResponse(instance);
+	}
+
+	private ServiceInstanceListSupplier getServiceInstanceListSupplier() {
+		if (this.serviceInstanceListSupplier == null) {
+			synchronized (RandomLoadBalancer.class) {
+				if (this.serviceInstanceListSupplier == null) {
+					this.serviceInstanceListSupplier = serviceInstanceListSupplierProvider
+							.getIfAvailable(NoopServiceInstanceListSupplier::new);
+				}
+			}
+		}
+		return this.serviceInstanceListSupplier;
 	}
 
 }

@@ -48,6 +48,8 @@ public class RoundRobinLoadBalancer implements ReactorServiceInstanceLoadBalance
 
 	ObjectProvider<ServiceInstanceListSupplier> serviceInstanceListSupplierProvider;
 
+	private volatile ServiceInstanceListSupplier serviceInstanceListSupplier;
+
 	/**
 	 * @param serviceInstanceListSupplierProvider a provider of
 	 * {@link ServiceInstanceListSupplier} that will be used to get available instances
@@ -77,8 +79,7 @@ public class RoundRobinLoadBalancer implements ReactorServiceInstanceLoadBalance
 	// https://github.com/Netflix/ocelli/blob/master/ocelli-core/
 	// src/main/java/netflix/ocelli/loadbalancer/RoundRobinLoadBalancer.java
 	public Mono<Response<ServiceInstance>> choose(Request request) {
-		ServiceInstanceListSupplier supplier = serviceInstanceListSupplierProvider
-				.getIfAvailable(NoopServiceInstanceListSupplier::new);
+		ServiceInstanceListSupplier supplier = getServiceInstanceListSupplier();
 		return supplier.get(request).next()
 				.map(serviceInstances -> processInstanceResponse(supplier, serviceInstances));
 	}
@@ -113,6 +114,18 @@ public class RoundRobinLoadBalancer implements ReactorServiceInstanceLoadBalance
 		ServiceInstance instance = instances.get(pos % instances.size());
 
 		return new DefaultResponse(instance);
+	}
+
+	private ServiceInstanceListSupplier getServiceInstanceListSupplier() {
+		if (this.serviceInstanceListSupplier == null) {
+			synchronized (RoundRobinLoadBalancer.class) {
+				if (this.serviceInstanceListSupplier == null) {
+					this.serviceInstanceListSupplier = serviceInstanceListSupplierProvider
+							.getIfAvailable(NoopServiceInstanceListSupplier::new);
+				}
+			}
+		}
+		return this.serviceInstanceListSupplier;
 	}
 
 }
