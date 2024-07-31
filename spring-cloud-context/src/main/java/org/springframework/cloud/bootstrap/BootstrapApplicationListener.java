@@ -39,6 +39,7 @@ import org.springframework.boot.context.logging.LoggingApplicationListener;
 import org.springframework.boot.env.OriginTrackedMapPropertySource;
 import org.springframework.boot.origin.Origin;
 import org.springframework.boot.origin.OriginLookup;
+import org.springframework.cloud.bootstrap.config.PropertySourceBootstrapConfiguration;
 import org.springframework.cloud.bootstrap.encrypt.EnvironmentDecryptApplicationInitializer;
 import org.springframework.cloud.bootstrap.support.OriginTrackedCompositePropertySource;
 import org.springframework.context.ApplicationContextInitializer;
@@ -295,6 +296,10 @@ public class BootstrapApplicationListener implements ApplicationListener<Applica
 		application.setInitializers(target);
 		addBootstrapDecryptInitializer(application);
 
+		// Executing PropertySourceLocator in parent context to prevent missed
+		// configuration in child context
+		PropertySourceBootstrapConfiguration locator = context.getBean(PropertySourceBootstrapConfiguration.class);
+		locator.locatePropertySource(environment);
 		// Get the active profiles from the bootstrap context and set them in main
 		// application
 		// environment. This allows any profiles activated during bootstrap to be

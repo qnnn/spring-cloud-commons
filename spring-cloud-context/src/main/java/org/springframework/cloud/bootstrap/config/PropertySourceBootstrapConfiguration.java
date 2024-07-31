@@ -112,10 +112,13 @@ public class PropertySourceBootstrapConfiguration implements ApplicationListener
 	}
 
 	private void doInitialize(ConfigurableApplicationContext applicationContext) {
+		locatePropertySource(applicationContext.getEnvironment());
+	}
+
+	public void locatePropertySource(ConfigurableEnvironment environment) {
 		List<PropertySource<?>> composite = new ArrayList<>();
 		AnnotationAwareOrderComparator.sort(this.propertySourceLocators);
 		boolean empty = true;
-		ConfigurableEnvironment environment = applicationContext.getEnvironment();
 		for (PropertySourceLocator locator : this.propertySourceLocators) {
 			Collection<PropertySource<?>> source = locator.locateCollection(environment);
 			if (source == null || source.size() == 0) {
@@ -145,7 +148,7 @@ public class PropertySourceBootstrapConfiguration implements ApplicationListener
 			}
 			insertPropertySources(propertySources, composite);
 			reinitializeLoggingSystem(environment);
-			setLogLevels(applicationContext, environment);
+			setLogLevels(environment);
 			handleProfiles(environment);
 		}
 	}
@@ -171,12 +174,12 @@ public class PropertySourceBootstrapConfiguration implements ApplicationListener
 		}
 	}
 
-	private void setLogLevels(ConfigurableApplicationContext applicationContext, ConfigurableEnvironment environment) {
+	private void setLogLevels(ConfigurableEnvironment environment) {
 		LoggingRebinder rebinder = new LoggingRebinder();
 		rebinder.setEnvironment(environment);
 		// We can't fire the event in the ApplicationContext here (too early), but we can
 		// create our own listener and poke it (it doesn't need the key changes)
-		rebinder.onApplicationEvent(new EnvironmentChangeEvent(applicationContext, Collections.emptySet()));
+		rebinder.onApplicationEvent(new EnvironmentChangeEvent(Collections.emptySet()));
 	}
 
 	private void insertPropertySources(MutablePropertySources propertySources, List<PropertySource<?>> composite) {
